@@ -5,8 +5,9 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OrderProvider } from "@/providers/OrderProvider";
 import { SettingsProvider } from "@/providers/SettingsProvider";
+import { scheduleSmartNotifications } from "@/utils/notifications";
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
@@ -21,7 +22,8 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    void SplashScreen.hideAsync();
+    void scheduleSmartNotifications();
   }, []);
 
   return (

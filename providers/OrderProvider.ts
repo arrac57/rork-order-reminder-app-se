@@ -5,7 +5,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { Order, Company, OrderItem, SavedArticle, CompanyAnalytics, MonthlyOrderData, ArticleStats } from '@/types/order';
 import { defaultCompanies } from '@/mocks/companies';
 import { generateRecommendations } from '@/utils/recommendations';
-import { scheduleSmartNotifications } from '@/providers/SettingsProvider';
+import { scheduleSmartNotifications } from '@/utils/notifications';
 
 const ORDERS_KEY = '@nkv_orders';
 const COMPANIES_KEY = '@nkv_companies';
@@ -61,7 +61,7 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       return updated;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 
@@ -71,7 +71,7 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       return updated;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      void queryClient.invalidateQueries({ queryKey: ['companies'] });
     },
   });
 
@@ -81,7 +81,7 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       return updated;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savedArticles'] });
+      void queryClient.invalidateQueries({ queryKey: ['savedArticles'] });
     },
   });
 
@@ -136,7 +136,7 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       updateSavedArticles(companyId, items, date);
       console.log('[OrderProvider] Added order:', newOrder.id);
       // Uppdatera smarta notiser efter ny order
-      scheduleSmartNotifications();
+      void scheduleSmartNotifications();
     },
     [orders, saveOrdersMutation, updateSavedArticles]
   );
@@ -147,8 +147,7 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       setOrders(updated);
       saveOrdersMutation.mutate(updated);
       console.log('[OrderProvider] Deleted order:', orderId);
-      // Uppdatera smarta notiser när en order tas bort
-      scheduleSmartNotifications();
+      void scheduleSmartNotifications();
     },
     [orders, saveOrdersMutation]
   );
@@ -276,7 +275,7 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
 
   const isLoading = ordersQuery.isLoading || companiesQuery.isLoading;
 
-  return {
+  return useMemo(() => ({
     orders,
     companies,
     savedArticles,
@@ -290,5 +289,5 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
     getArticlesForCompany,
     deleteSavedArticle,
     getCompanyAnalytics,
-  };
+  }), [orders, companies, savedArticles, recommendations, isLoading, addOrder, deleteOrder, addCompany, deleteCompany, getCompanyName, getArticlesForCompany, deleteSavedArticle, getCompanyAnalytics]);
 });
