@@ -4,8 +4,11 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { AppSettings } from '@/types/order';
+import { generateRecommendations } from '@/utils/recommendations';
 
 const SETTINGS_KEY = '@nkv_settings';
+const ORDERS_KEY = '@nkv_orders';
+const COMPANIES_KEY = '@nkv_companies';
 
 const defaultSettings: AppSettings = {
   reminderEnabled: false,
@@ -13,27 +16,54 @@ const defaultSettings: AppSettings = {
   notificationPermissionGranted: false,
 };
 
+async function buildNotificationContent() {
+  try {
+    const [ordersRaw, companiesRaw] = await Promise.all([
+      AsyncStorage.getItem(ORDERS_KEY),
+      AsyncStorage.getItem(COMPANIES_KEY),
+    ]);
+    const orders = ordersRaw ? JSON.parse(ordersRaw) : [];
+    const companies = companiesRaw ? JSON.parse(companiesRaw) : [];
+    const recs = generateRecommendations(orders, companies, 10);
+
+    if (recs.length === 0) return null;
+
+    const top = recs[0];
+    const body =
+      recs.length === 1
+        ? `Dags att beställa ${top.articleName}! Senast för ${top.daysSinceLastOrder} dagar sedan.`
+        : `${recs.length} artiklar att beställa! Mest brådskande: ${top.articleName} (${top.daysSinceLastOrder} dagar sedan)`;
+
+    return { title: 'NKV Orderhantering', body };
+  } catch {
+    return { title: 'NKV Orderhantering', body: 'Dags att kolla dina beställningsrekommendationer!' };
+  }
+}
+
 async function scheduleReminder(time: string) {
   if (Platform.OS === 'web') return;
   try {
     const Notifications = await import('expo-notifications');
     await Notifications.cancelAllScheduledNotificationsAsync();
+
+    const content = await buildNotificationContent();
+    if (!content) {
+      console.log('[Settings] Inga rekommendationer – ingen notis schemalagd');
+      return;
+    }
+
     const [hours, minutes] = time.split(':').map(Number);
     await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'NKV Orderhantering',
-        body: 'Dags att logga dagens beställningar!',
-        sound: true,
-      },
+      content: { ...content, sound: true },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: hours,
         minute: minutes,
       },
     });
-    console.log('[Settings] Scheduled daily reminder at', time);
+    console.log('[Settings] Schemalagd notis kl', time, '–', content.body);
   } catch (e) {
-    console.log('[Settings] Error scheduling notification:', e);
+    console.log('[Settings] Fel vid schemaläggning:', e);
   }
 }
 
@@ -42,9 +72,9 @@ async function cancelReminders() {
   try {
     const Notifications = await import('expo-notifications');
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[Settings] Cancelled all reminders');
+    console.log('[Settings] Alla påminnelser avbokade');
   } catch (e) {
-    console.log('[Settings] Error cancelling notifications:', e);
+    console.log('[Settings] Fel vid avbokning:', e);
   }
 }
 
@@ -57,7 +87,7 @@ async function requestNotificationPermission(): Promise<boolean> {
     const { status } = await Notifications.requestPermissionsAsync();
     return status === 'granted';
   } catch (e) {
-    console.log('[Settings] Error requesting permission:', e);
+    console.log('[Settings] Fel vid behörighetsbegäran:', e);
     return false;
   }
 }
