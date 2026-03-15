@@ -5,6 +5,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { Order, Company, OrderItem, SavedArticle, CompanyAnalytics, MonthlyOrderData, ArticleStats } from '@/types/order';
 import { defaultCompanies } from '@/mocks/companies';
 import { generateRecommendations } from '@/utils/recommendations';
+import { scheduleSmartNotifications } from '@/providers/SettingsProvider';
 
 const ORDERS_KEY = '@nkv_orders';
 const COMPANIES_KEY = '@nkv_companies';
@@ -134,6 +135,8 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       saveOrdersMutation.mutate(updated);
       updateSavedArticles(companyId, items, date);
       console.log('[OrderProvider] Added order:', newOrder.id);
+      // Uppdatera smarta notiser efter ny order
+      scheduleSmartNotifications();
     },
     [orders, saveOrdersMutation, updateSavedArticles]
   );
@@ -144,6 +147,8 @@ export const [OrderProvider, useOrders] = createContextHook(() => {
       setOrders(updated);
       saveOrdersMutation.mutate(updated);
       console.log('[OrderProvider] Deleted order:', orderId);
+      // Uppdatera smarta notiser när en order tas bort
+      scheduleSmartNotifications();
     },
     [orders, saveOrdersMutation]
   );
