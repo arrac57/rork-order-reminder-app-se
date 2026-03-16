@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, PlusCircle, ClipboardList, Settings } from "lucide-react-native";
+import { Home, PlusCircle, ClipboardList, Settings, Package } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -33,6 +33,13 @@ export default function TabLayout() {
         options={{
           title: "Ny Order",
           tabBarIcon: ({ color, size }) => <PlusCircle size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="articles"
+        options={{
+          title: "Artiklar",
+          tabBarIcon: ({ color, size }) => <Package size={size} color={color} />,
         }}
       />
       <Tabs.Screen

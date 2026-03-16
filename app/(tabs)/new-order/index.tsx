@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Plus, Minus, Trash2, CalendarDays, Check, Search, Zap, ShoppingCart, X, Package } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useOrders } from '@/providers/OrderProvider';
+import { useArticles } from '@/providers/ArticlesProvider';
 import { OrderItem } from '@/types/order';
 import { nkvProducts } from '@/mocks/nkv-products';
 import { getTodayString } from '@/utils/recommendations';
@@ -31,6 +32,7 @@ interface CartItem {
 export default function NewOrderScreen() {
   const router = useRouter();
   const { companies, addOrder, getArticlesForCompany } = useOrders();
+  const { articles: supabaseArticles } = useArticles();
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [companySearch, setCompanySearch] = useState<string>('');
@@ -40,9 +42,7 @@ export default function NewOrderScreen() {
   const [showDeliveryCalendar, setShowDeliveryCalendar] = useState<boolean>(false);
   const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
-
   const [cart, setCart] = useState<CartItem[]>([]);
-
   const [articleSearch, setArticleSearch] = useState<string>('');
   const [showArticleSuggestions, setShowArticleSuggestions] = useState<boolean>(false);
 
@@ -66,7 +66,7 @@ export default function NewOrderScreen() {
 
   const articleSuggestions = useMemo(() => {
     const q = articleSearch.toLowerCase().trim();
-    const results: { name: string; articleNumber: string; price: number; source: 'company' | 'nkv' }[] = [];
+    const results: { name: string; articleNumber: string; price: number; source: 'company' | 'db' | 'nkv' }[] = [];
 
     if (selectedCompanyId && companyArticles.length > 0) {
       const companyMatches = companyArticles.filter((a) => {
@@ -75,6 +75,18 @@ export default function NewOrderScreen() {
       });
       for (const a of companyMatches.slice(0, 5)) {
         results.push({ name: a.articleName, articleNumber: a.articleNumber, price: a.lastPrice, source: 'company' });
+      }
+    }
+
+    if (q && supabaseArticles.length > 0) {
+      const dbMatches = supabaseArticles.filter((a) =>
+        a.name.toLowerCase().includes(q) || a.article_number.toLowerCase().startsWith(q)
+      );
+      for (const a of dbMatches.slice(0, 6)) {
+        const alreadyAdded = results.some((r) => r.articleNumber === a.article_number);
+        if (!alreadyAdded) {
+          results.push({ name: a.name, articleNumber: a.article_number, price: 0, source: 'db' });
+        }
       }
     }
 
@@ -89,11 +101,11 @@ export default function NewOrderScreen() {
       }
     }
 
-    return results.slice(0, 8);
-  }, [articleSearch, selectedCompanyId, companyArticles]);
+    return results.slice(0, 10);
+  }, [articleSearch, selectedCompanyId, companyArticles, supabaseArticles]);
 
   const addToCart = useCallback((name: string, articleNumber: string, price: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCart((prev) => {
       const existing = prev.find((item) => item.articleNumber === articleNumber);
       if (existing) {
@@ -114,7 +126,7 @@ export default function NewOrderScreen() {
   }, []);
 
   const updateCartQuantity = useCallback((id: string, delta: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCart((prev) =>
       prev
         .map((item) =>
@@ -131,7 +143,7 @@ export default function NewOrderScreen() {
   }, []);
 
   const removeFromCart = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCart((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
@@ -171,7 +183,7 @@ export default function NewOrderScreen() {
       notes || undefined
     );
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert('Beställning sparad!', 'Din beställning har lagts till.', [
       {
         text: 'OK',
@@ -247,7 +259,7 @@ export default function NewOrderScreen() {
                       setSelectedCompanyId(company.id);
                       setCompanySearch(company.name);
                       setCompanyDropdownVisible(false);
-                      Haptics.selectionAsync();
+                      void Haptics.selectionAsync();
                       console.log('[NewOrder] Selected company:', company.name);
                     }}
                   >
@@ -324,9 +336,19 @@ export default function NewOrderScreen() {
                         ) : null}
                       </View>
                     </View>
-                    <View style={[styles.sourceBadge, s.source === 'company' ? styles.sourceBadgeCompany : styles.sourceBadgeNkv]}>
-                      <Text style={[styles.sourceBadgeText, s.source === 'company' ? styles.sourceBadgeTextCompany : styles.sourceBadgeTextNkv]}>
-                        {s.source === 'company' ? 'Tidigare' : 'NKV'}
+                    <View style={[
+                      styles.sourceBadge,
+                      s.source === 'company' ? styles.sourceBadgeCompany :
+                      s.source === 'db' ? styles.sourceBadgeDb :
+                      styles.sourceBadgeNkv
+                    ]}>
+                      <Text style={[
+                        styles.sourceBadgeText,
+                        s.source === 'company' ? styles.sourceBadgeTextCompany :
+                        s.source === 'db' ? styles.sourceBadgeTextDb :
+                        styles.sourceBadgeTextNkv
+                      ]}>
+                        {s.source === 'company' ? 'Tidigare' : s.source === 'db' ? 'Artiklar' : 'NKV'}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -636,7 +658,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   suggestionsList: {
-    maxHeight: 280,
+    maxHeight: 300,
   },
   suggestionItem: {
     flexDirection: 'row',
@@ -679,6 +701,9 @@ const styles = StyleSheet.create({
   sourceBadgeCompany: {
     backgroundColor: Colors.surfaceSecondary,
   },
+  sourceBadgeDb: {
+    backgroundColor: Colors.successLight,
+  },
   sourceBadgeNkv: {
     backgroundColor: '#E3F2FD',
   },
@@ -688,6 +713,9 @@ const styles = StyleSheet.create({
   },
   sourceBadgeTextCompany: {
     color: Colors.textSecondary,
+  },
+  sourceBadgeTextDb: {
+    color: Colors.success,
   },
   sourceBadgeTextNkv: {
     color: Colors.primary,

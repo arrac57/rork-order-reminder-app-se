@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OrderProvider } from "@/providers/OrderProvider";
 import { SettingsProvider } from "@/providers/SettingsProvider";
+import { ArticlesProvider } from "@/providers/ArticlesProvider";
 import { scheduleSmartNotifications } from "@/utils/notifications";
 
 void SplashScreen.preventAutoHideAsync();
@@ -30,9 +31,11 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
         <OrderProvider>
-          <SettingsProvider>
-            <RootLayoutNav />
-          </SettingsProvider>
+          <ArticlesProvider>
+            <SettingsProvider>
+              <RootLayoutNav />
+            </SettingsProvider>
+          </ArticlesProvider>
         </OrderProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

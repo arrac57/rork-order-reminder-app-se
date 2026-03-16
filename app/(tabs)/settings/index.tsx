@@ -9,8 +9,9 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { Bell, Building2, Plus, Trash2, Clock, Database, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Bell, Building2, Plus, Trash2, Clock, ChevronDown, ChevronUp, Database } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSettings } from '@/providers/SettingsProvider';
 import { useOrders } from '@/providers/OrderProvider';
@@ -18,7 +19,7 @@ import Colors from '@/constants/colors';
 
 export default function SettingsScreen() {
   const { settings, updateSettings } = useSettings();
-  const { companies, addCompany, deleteCompany, savedArticles, deleteSavedArticle, getArticlesForCompany } = useOrders();
+  const { companies, addCompany, deleteCompany, savedArticles, getArticlesForCompany, isLoading, isMutating } = useOrders();
 
   const [newCompanyName, setNewCompanyName] = useState<string>('');
   const [showAddCompany, setShowAddCompany] = useState<boolean>(false);
@@ -34,8 +35,8 @@ export default function SettingsScreen() {
 
   const handleToggleReminder = useCallback(
     (value: boolean) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      updateSettings({ reminderEnabled: value });
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void updateSettings({ reminderEnabled: value });
     },
     [updateSettings]
   );
@@ -46,9 +47,9 @@ export default function SettingsScreen() {
       Alert.alert('Ogiltigt format', 'Ange tid i formatet HH:MM (t.ex. 08:00)');
       return;
     }
-    updateSettings({ reminderTime: timeInput });
+    void updateSettings({ reminderTime: timeInput });
     setEditingTime(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [timeInput, updateSettings]);
 
   const handleAddCompany = useCallback(() => {
@@ -59,19 +60,19 @@ export default function SettingsScreen() {
     addCompany(newCompanyName.trim());
     setNewCompanyName('');
     setShowAddCompany(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [newCompanyName, addCompany]);
 
   const handleDeleteCompany = useCallback(
     (id: string, name: string) => {
-      Alert.alert('Ta bort företag', `Vill du ta bort "${name}"?`, [
+      Alert.alert('Ta bort företag', `Vill du ta bort "${name}"? Alla ordrar kopplade till detta företag tas också bort.`, [
         { text: 'Avbryt', style: 'cancel' },
         {
           text: 'Ta bort',
           style: 'destructive',
           onPress: () => {
             deleteCompany(id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
       ]);
@@ -79,22 +80,13 @@ export default function SettingsScreen() {
     [deleteCompany]
   );
 
-  const handleDeleteArticle = useCallback(
-    (articleId: string, articleName: string) => {
-      Alert.alert('Ta bort artikel', `Vill du ta bort "${articleName}" från sparade artiklar?`, [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Ta bort',
-          style: 'destructive',
-          onPress: () => {
-            deleteSavedArticle(articleId);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]);
-    },
-    [deleteSavedArticle]
-  );
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -165,6 +157,10 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {isMutating ? (
+          <ActivityIndicator size="small" color={Colors.primary} style={styles.mutatingIndicator} />
+        ) : null}
+
         {showAddCompany && (
           <View style={styles.addCompanyRow}>
             <TextInput
@@ -205,7 +201,7 @@ export default function SettingsScreen() {
           activeOpacity={0.7}
         >
           <Database size={18} color={Colors.primary} />
-          <Text style={styles.sectionTitle}>Sparade artiklar ({savedArticles.length})</Text>
+          <Text style={styles.sectionTitle}>Orderhistorik per företag ({savedArticles.length})</Text>
           {showArticleManager ? (
             <ChevronUp size={18} color={Colors.textTertiary} />
           ) : (
@@ -215,7 +211,7 @@ export default function SettingsScreen() {
 
         {!showArticleManager && (
           <Text style={styles.articleManagerHint}>
-            Tryck för att hantera sparade artiklar per företag
+            Tryck för att visa beställda artiklar per företag
           </Text>
         )}
 
@@ -255,12 +251,6 @@ export default function SettingsScreen() {
                             #{article.articleNumber} · {article.lastPrice > 0 ? `${article.lastPrice} kr` : '—'} · {article.orderCount} beställningar
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteArticle(article.id, article.articleName)}
-                          hitSlop={12}
-                        >
-                          <Trash2 size={14} color={Colors.textTertiary} />
-                        </TouchableOpacity>
                       </View>
                     ))}
                 </View>
@@ -271,7 +261,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>NKV Orderhantering v1.0</Text>
+        <Text style={styles.footerText}>NKV Orderhantering v2.0 · Supabase</Text>
       </View>
     </ScrollView>
   );
@@ -285,6 +275,12 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   section: {
     backgroundColor: Colors.white,
@@ -386,6 +382,9 @@ const styles = StyleSheet.create({
   },
   addCompanyHeaderBtn: {
     padding: 4,
+  },
+  mutatingIndicator: {
+    marginBottom: 8,
   },
   addCompanyRow: {
     flexDirection: 'row',

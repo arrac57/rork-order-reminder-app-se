@@ -8,19 +8,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { PlusCircle, TrendingUp, Package, AlertTriangle, ChevronRight } from 'lucide-react-native';
+import { PlusCircle, TrendingUp, Package, AlertTriangle, ChevronRight, WifiOff } from 'lucide-react-native';
 import { useOrders } from '@/providers/OrderProvider';
 import Colors from '@/constants/colors';
 import { formatDate } from '@/utils/recommendations';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { orders, recommendations, isLoading, getCompanyName } = useOrders();
+  const { orders, recommendations, isLoading, isError, getCompanyName } = useOrders();
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Laddar data...</Text>
       </View>
     );
   }
@@ -30,6 +31,13 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {isError ? (
+        <View style={styles.errorBanner}>
+          <WifiOff size={16} color={Colors.warning} />
+          <Text style={styles.errorBannerText}>Kunde inte ansluta till servern. Visar cachad data.</Text>
+        </View>
+      ) : null}
+
       <View style={styles.statsRow}>
         <View style={[styles.statCard, styles.statCardPrimary]}>
           <Package size={20} color={Colors.white} />
@@ -102,7 +110,7 @@ export default function HomeScreen() {
                 <Text style={styles.orderDate}>{formatDate(order.date)}</Text>
               </View>
               <Text style={styles.orderItems}>
-                {order.items.map((item) => `${item.quantity}x ${item.articleName}`).join(', ')}
+                {order.items.map((item) => `${item.quantity}x ${item.articleName || item.articleNumber}`).join(', ')}
               </Text>
             </View>
           ))}
@@ -126,6 +134,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.warningLight,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    color: Colors.warning,
+    fontWeight: '500' as const,
+    flex: 1,
   },
   statsRow: {
     flexDirection: 'row',

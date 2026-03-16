@@ -1,7 +1,34 @@
 export interface Company {
   id: string;
   name: string;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
   contactInfo?: string;
+  created_at?: string;
+}
+
+export interface Article {
+  id: string;
+  article_number: string;
+  name: string;
+  category?: string;
+  created_at?: string;
+}
+
+export interface OrderRow {
+  id: string;
+  company_id: string;
+  article_id?: string | null;
+  article_number: string;
+  article_name?: string;
+  quantity?: number;
+  unit?: string;
+  order_date?: string;
+  expected_reorder_days?: number;
+  notes?: string;
+  created_at?: string;
 }
 
 export interface OrderItem {

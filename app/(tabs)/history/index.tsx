@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, Trash2, Package, ChevronRight } from 'lucide-react-native';
+import { Search, Trash2, Package, ChevronRight, WifiOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useOrders } from '@/providers/OrderProvider';
 import { Order } from '@/types/order';
@@ -18,7 +19,7 @@ import Colors from '@/constants/colors';
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { orders, deleteOrder, getCompanyName } = useOrders();
+  const { orders, deleteOrder, getCompanyName, isLoading, isError } = useOrders();
   const [search, setSearch] = useState<string>('');
 
   const filteredOrders = orders.filter((order) => {
@@ -42,7 +43,7 @@ export default function HistoryScreen() {
           style: 'destructive',
           onPress: () => {
             deleteOrder(orderId);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
       ]);
@@ -52,7 +53,7 @@ export default function HistoryScreen() {
 
   const handleCompanyPress = useCallback(
     (companyId: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push(`/company-profile?id=${companyId}` as never);
     },
     [router]
@@ -82,11 +83,13 @@ export default function HistoryScreen() {
 
           {item.items.map((orderItem) => (
             <View key={orderItem.id} style={styles.articleRow}>
-              <Text style={styles.articleName}>
-                {orderItem.quantity}x {orderItem.articleName}
-              </Text>
-              <View style={styles.articleMeta}>
+              <View style={styles.articleLeft}>
+                <Text style={styles.articleName}>
+                  {orderItem.quantity}x {orderItem.articleName || 'Okänd artikel'}
+                </Text>
                 <Text style={styles.articleNumber}>#{orderItem.articleNumber}</Text>
+              </View>
+              <View style={styles.articleMeta}>
                 {orderItem.price > 0 && (
                   <Text style={styles.articlePrice}>{orderItem.price} kr</Text>
                 )}
@@ -113,8 +116,24 @@ export default function HistoryScreen() {
 
   const keyExtractor = useCallback((item: Order) => item.id, []);
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Laddar historik...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
+      {isError ? (
+        <View style={styles.errorBanner}>
+          <WifiOff size={16} color={Colors.warning} />
+          <Text style={styles.errorBannerText}>Offline – visar cachad data</Text>
+        </View>
+      ) : null}
+
       <View style={styles.searchContainer}>
         <Search size={18} color={Colors.textTertiary} />
         <TextInput
@@ -149,6 +168,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.warningLight,
+    borderRadius: 10,
+    padding: 10,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 0,
+  },
+  errorBannerText: {
+    fontSize: 12,
+    color: Colors.warning,
+    fontWeight: '500' as const,
+    flex: 1,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -213,20 +260,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
+  articleLeft: {
+    flex: 1,
+  },
   articleName: {
     fontSize: 14,
     color: Colors.text,
     fontWeight: '500' as const,
-    flex: 1,
+  },
+  articleNumber: {
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 1,
   },
   articleMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  articleNumber: {
-    fontSize: 12,
-    color: Colors.textTertiary,
   },
   articlePrice: {
     fontSize: 13,
